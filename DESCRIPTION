@@ -2,8 +2,8 @@ Package: dearseq
 Type: Package
 Title: Differential Expression Analysis for RNA-seq data through a robust 
        variance component test
-Version: 1.13.3
-Date: 2023-06-16
+Version: 1.13.4
+Date: 2023-09-06
 Authors@R: c(person("Denis", "Agniel", role = c("aut"),
                     email = "denis.agniel@gmail.com"),
 	           person("Boris P.", "Hejblum", role = c("aut", "cre"),
@@ -12,7 +12,9 @@ Authors@R: c(person("Denis", "Agniel", role = c("aut"),
 	           person("Marine", "Gauthier", role = c("aut"),
 	                  email = "marine.gauthier@u-bordeaux.fr"),
 	           person("Mélanie", "Huchon", role = c("ctb"),
-	                  email = "melanie.huchon@u-bordeaux.fr"))
+	                  email = "melanie.huchon@u-bordeaux.fr"),
+	           person("Iban", "Larrouture", role = c("ctb"),
+	                  email = "iban.larrouture@u-bordeaux.fr"))
 Depends: R (>= 3.6.0)
 Imports: CompQuadForm, dplyr, ggplot2, KernSmooth, magrittr, matrixStats, methods, 
          patchwork, parallel, pbapply, reshape2, rlang, scattermore, stats, 

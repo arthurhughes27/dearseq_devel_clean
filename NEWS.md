@@ -1,3 +1,8 @@
+CHANGES IN VERSION 1.13.4 (2023-09-06):
+--------------------------------------
+ + better handlingof non-tested genes
+ 
+
 CHANGES IN VERSION 1.13.3 (2023-06-16):
 --------------------------------------
  + bug fix on Linux: default number of cores for parallel computations 

@@ -31,7 +31,7 @@ to be a \code{factor}.}
 \code{K} longitudinal variables to be tested (typically a vector of time
 points or functions of time)}
 
-\item{w}{a vector of length \code{n} containing the weights for the \code{n}
+\item{w}{numeric matrix of dim \code{G x n} containing the weights for G genes from the \code{n}
 samples, corresponding to the inverse of the diagonal of the estimated
 covariance matrix of y.}
 
