@@ -31,7 +31,7 @@ articles:
 > variance component score test for RNA-Seq differential analysis that
 > effectively controls the false discovery rate, *NAR Genomics and
 > Bioinformatics* **2**(*4*):lqaa093 [DOI:
-> 10.1093/nargab/lqaa093](https://doi.org/10.1101/10.1093/nargab/lqaa093)
+> 10.1093/nargab/lqaa093](https://doi.org/10.1093/nargab/lqaa093)
 > [bioRxiv:635714](https://www.biorxiv.org/content/10.1101/635714v1)
 
 🌐 Reproducible code files for the results presented in Gauthier *et
