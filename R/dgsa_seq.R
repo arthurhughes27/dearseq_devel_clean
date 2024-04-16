@@ -153,6 +153,10 @@
 #'@param verbose logical: should informative messages be printed during the
 #'computation? Default is \code{TRUE}.
 #'
+#'@param return_score logical: should score statistics be returned? If \code{TRUE},
+#'returns the score statistics at the set, gene, and individual levels. Default is
+#'\code{FALSE}.
+#'
 #'@return A list with the following elements:\itemize{
 #'   \item \code{which_test}: a character string carrying forward the value of
 #'   the '\code{which_test}' argument indicating which test was perform (either
@@ -173,6 +177,12 @@
 #'   the raw p-values, the second one contains the FDR adjusted p-values
 #'   (according to the '\code{padjust_methods}' argument) and is named
 #'   '\code{adjPval}'.
+#'   \item \code{score}: A list containing computed scores at 3 levels .
+#'   \code{set.score} : a vector containing the set level scores for every gene set.
+#'   \code{gene.score} : a list of vectors containing the gene scores for every gene set.
+#'   \code{indiv.score} : a list of matrices containing the individual level scores for each
+#'   gene within each gene set. Only returned if the \code{return_score} argument
+#'   is \code{TRUE}.
 #' }
 #'
 #'@seealso \code{\link{sp_weights}} \code{\link{vc_test_perm}}
@@ -274,7 +284,8 @@ dgsa_seq <- function(exprmat = NULL, object = NULL,
                      adaptive = TRUE, max_adaptive = 64000,
                      homogen_traj = FALSE,
                      na.rm_gsaseq = TRUE,
-                     verbose = TRUE) {
+                     verbose = TRUE,
+                     return_score = FALSE) {
 
   if(weights_var2test_condi & which_test == "permutation"){
       warning("`weights_var2test_condi` must be FALSE for the ",
@@ -520,7 +531,8 @@ dgsa_seq <- function(exprmat = NULL, object = NULL,
                                Sigma_xi = cov_variables2test_eff,
                                genewise_pvals = TRUE,
                                homogen_traj = homogen_traj,
-                               na.rm = na.rm_gsaseq)$gene_pvals
+                               na.rm = na.rm_gsaseq,
+                               return_score = return_score)$gene_pvals
     } else if (which_test == "permutation") {
       if (is.null(sample_group)) {
         sample_group <- rep(1, nrow(x))
@@ -559,7 +571,7 @@ dgsa_seq <- function(exprmat = NULL, object = NULL,
     if (!is.null(rownames(y_lcpm))) {
       rownames(pvals) <- rownames(y_lcpm)
     }
-  } else {
+  } else { # geneset case
     if(is(genesets, "BiocSet")){
       genesets <- BiocSet::es_elementset(genesets)
       genesets_names <- unique(genesets$set)
@@ -615,7 +627,45 @@ dgsa_seq <- function(exprmat = NULL, object = NULL,
       }
     }
 
-    if (which_test == "asymptotic") {
+    if (which_test == "asymptotic" & return_score == TRUE) { # case for when returning scores
+      if (is.null(sample_group)) {
+        sample_group <- seq_len(nrow(x))
+      }
+      results_list <- lapply(seq_along(genesets), FUN = function(i_gs) {
+        gs <- genesets[[i_gs]]
+        e <- tryCatch(y_lcpm[gs, 1, drop = FALSE],
+                      error=function(cond){return(NULL)})
+        if (length(e) < 1) {
+          warning("Gene set ", i_gs, " contains 0 measured ",
+                  "transcript: associated p-value cannot ",
+                  "be computed")
+          NA
+        } else {
+          test = vc_test_asym(y = y_lcpm[gs, , drop = FALSE], x = x,
+                       indiv = sample_group, phi = phi,
+                       w = w[gs, , drop = FALSE],
+                       Sigma_xi = cov_variables2test_eff,
+                       genewise_pvals = FALSE,
+                       homogen_traj = homogen_traj,
+                       na.rm = na.rm_gsaseq,
+                       return_score = return_score
+          )
+
+          pval = test$set_pval
+          set.score = test$set_score
+          gene.score = test$gene.score
+          indiv.score = test$indiv.score
+          return(list(pval, set.score, gene.score, indiv.score))
+        }
+      })
+
+      rawPvals <- sapply(results_list, function(x) x[[1]])
+      set.score <- sapply(results_list, function(x) x[[2]])
+      gene.score <- lapply(results_list, function(x) x[[3]])
+      indiv.score <- lapply(results_list, function(x) x[[4]])
+      score = list("set.score" = set.score, "gene.score" = gene.score, "indiv.score" = indiv.score)
+
+    } else if (which_test == "asymptotic" & return_score == FALSE){
       if (is.null(sample_group)) {
         sample_group <- seq_len(nrow(x))
       }
@@ -629,17 +679,24 @@ dgsa_seq <- function(exprmat = NULL, object = NULL,
                   "be computed")
           NA
         } else {
-          vc_test_asym(y = y_lcpm[gs, , drop = FALSE], x = x,
-                       indiv = sample_group, phi = phi,
-                       w = w[gs, , drop = FALSE],
-                       Sigma_xi = cov_variables2test_eff,
-                       genewise_pvals = FALSE,
-                       homogen_traj = homogen_traj,
-                       na.rm = na.rm_gsaseq
-          )$set_pval
+          test = vc_test_asym(y = y_lcpm[gs, , drop = FALSE], x = x,
+                              indiv = sample_group, phi = phi,
+                              w = w[gs, , drop = FALSE],
+                              Sigma_xi = cov_variables2test_eff,
+                              genewise_pvals = FALSE,
+                              homogen_traj = homogen_traj,
+                              na.rm = na.rm_gsaseq,
+                              return_score = FALSE
+          )
+
+          pval = test$set_pval
+          return(pval)
         }
       }, FUN.VALUE = 0.5)
-    } else if (which_test == "permutation") {
+    }
+
+
+    else if (which_test == "permutation") {
       if (is.null(sample_group)) {
         sample_group <- rep(1, nrow(x))
       }
@@ -703,7 +760,7 @@ dgsa_seq <- function(exprmat = NULL, object = NULL,
                       n_perm = n_perm, pvals = pvals, precision_weights = w,
                       weight_object = w_full
     )
-  }else{
+  }else if (!is.null(genesets) & return_score == FALSE){
     ans_final <- list(which_test = which_test, preprocessed = preprocessed,
                       n_perm = n_perm, genesets = genesets, pvals = pvals,
                       precision_weights = lapply(genesets,
@@ -713,6 +770,19 @@ dgsa_seq <- function(exprmat = NULL, object = NULL,
                       ),
                       weight_object = w_full
     )
+  } else if (!is.null(genesets) & return_score == TRUE){
+    ans_final <- list(which_test = which_test, preprocessed = preprocessed,
+                      n_perm = n_perm, genesets = genesets, pvals = pvals,
+                      precision_weights = lapply(genesets,
+                                                 FUN = function(gs){tryCatch(w[gs, , drop = FALSE],
+                                                                             error=function(cond){return(NA)})
+                                                 }
+                      ),
+                      weight_object = w_full,
+                      score = score
+    )
+
+
   }
 
   class(ans_final) <- "dearseq"
