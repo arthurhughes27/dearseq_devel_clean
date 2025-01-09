@@ -609,6 +609,12 @@ dgsa_seq <- function(exprmat = NULL, object = NULL,
     }
 
     if (is(genesets[[1]], "character")) {
+
+      if(length(unlist(genesets)) != length(unlist(lapply(genesets, unique)))){
+        warning("Some gene sets contain repeated gene names - removing duplicates. \n")
+        genesets = lapply(genesets, unique)
+      }
+
       if (is.null(rownames(y_lcpm))) {
         stop("Gene sets specified as character but no rownames ",
              "available for the expression matrix")
@@ -663,7 +669,27 @@ dgsa_seq <- function(exprmat = NULL, object = NULL,
       set.score <- sapply(results_list, function(x) x[[2]])
       gene.score <- lapply(results_list, function(x) x[[3]])
       indiv.score <- lapply(results_list, function(x) x[[4]])
-      score = list("set.score" = set.score, "gene.score" = gene.score, "indiv.score" = indiv.score)
+
+      n_genesets = length(genesets)
+      # indiv_phi = (cbind(variables2test,sample_group) %>% as.data.frame() %>% distinct() %>%
+                     #arrange(sample_group))[,1]
+
+      indiv_phi = phi
+      directional.scores = matrix(0, nrow = n_genesets)
+        for (k in 1:n_genesets){
+          obs_scores = indiv.score[[k]]
+          directional.scores[k] = sum((1/length(GSA[["genesets"]][[k]])) *
+                                             (colSums(obs_scores[indiv_phi == 2,])/
+                                                length(which(indiv_phi == 2)) -
+                                                colSums(obs_scores[indiv_phi == 1,])/
+                                                length(which(indiv_phi == 1))))
+        }
+
+
+      score = list("set.score" = set.score,
+                   "gene.score" = gene.score,
+                   "indiv.score" = indiv.score,
+                   "directional.score" = directional.scores)
 
     } else if (which_test == "asymptotic" & return_score == FALSE){
       if (is.null(sample_group)) {

@@ -85,7 +85,7 @@ vc_score <- function(y, x, indiv, phi, w, Sigma_xi = diag(ncol(phi)),
     stopifnot(nrow(phi) == n)
     stopifnot(length(indiv) == n)
 
-
+    if(Sigma_xi )
     # the number of random effects
     if (length(Sigma_xi) == 1) {
         K <- 1
@@ -213,6 +213,6 @@ vc_score <- function(y, x, indiv, phi, w, Sigma_xi = diag(ncol(phi)),
 
     QQ <- sum(qq)  #nb_indiv=nrow(q) # set score
 
-    return(list(score = QQ, q = q, q_ext = q_ext,
+    return(list(score = QQ, q = q_fast, q_ext = q_ext,
                 gene_scores_unscaled = gene_Q))
 }
