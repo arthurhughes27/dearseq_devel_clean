@@ -560,7 +560,8 @@ dgsa_seq <- function(exprmat = NULL, object = NULL,
                                   adaptive = adaptive,
                                   max_adaptive = max_adaptive,
                                   homogen_traj = homogen_traj,
-                                  na.rm = na.rm_gsaseq)
+                                  na.rm = na.rm_gsaseq,
+                                  return_score = return_score)
       rawPvals <- perm_result$gene_pvals
     }
 
