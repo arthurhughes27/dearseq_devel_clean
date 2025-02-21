@@ -287,6 +287,8 @@ dgsa_seq <- function(exprmat = NULL, object = NULL,
                      verbose = TRUE,
                      return_score = FALSE) {
 
+### VALIDITY CHECKS ###
+
   if(weights_var2test_condi & which_test == "permutation"){
       warning("`weights_var2test_condi` must be FALSE for the ",
               "permutation test, as `phi` gets permuted.")
@@ -458,7 +460,7 @@ dgsa_seq <- function(exprmat = NULL, object = NULL,
   }
 
 
-
+  ### NUMBER OF PERMUTATIONS ###
   if (which_test == "permutation") {
     if (is.null(sample_group)) {
       #suppressWarnings(
@@ -483,7 +485,7 @@ dgsa_seq <- function(exprmat = NULL, object = NULL,
 
 
 
-  # Computing the weights
+  ### HETEROSKEDASTICITY WEIGHTS ###
   if (which_weights != "none" & verbose) {
     message("Computing the weights... ")
   }
@@ -517,6 +519,8 @@ dgsa_seq <- function(exprmat = NULL, object = NULL,
   w <- w_full$weights
 
 
+  ### DIFFERENTIAL TESTING  ###
+  # Genewise Case
   if (is.null(genesets)) {
     if (verbose) {
       message("'genesets' argument not provided => only gene-wise ",
@@ -572,7 +576,8 @@ dgsa_seq <- function(exprmat = NULL, object = NULL,
     if (!is.null(rownames(y_lcpm))) {
       rownames(pvals) <- rownames(y_lcpm)
     }
-  } else { # geneset case
+  } else { # Geneset Case
+    # Validity of geneset input
     if(is(genesets, "BiocSet")){
       genesets <- BiocSet::es_elementset(genesets)
       genesets_names <- unique(genesets$set)
@@ -634,7 +639,10 @@ dgsa_seq <- function(exprmat = NULL, object = NULL,
       }
     }
 
-    if (which_test == "asymptotic" & return_score == TRUE) { # case for when returning scores
+    ### COMPUTE SCORES ###
+
+    if (return_score == TRUE){
+
       if (is.null(sample_group)) {
         sample_group <- seq_len(nrow(x))
       }
@@ -649,13 +657,13 @@ dgsa_seq <- function(exprmat = NULL, object = NULL,
           NA
         } else {
           test = vc_test_asym(y = y_lcpm[gs, , drop = FALSE], x = x,
-                       indiv = sample_group, phi = phi,
-                       w = w[gs, , drop = FALSE],
-                       Sigma_xi = cov_variables2test_eff,
-                       genewise_pvals = FALSE,
-                       homogen_traj = homogen_traj,
-                       na.rm = na.rm_gsaseq,
-                       return_score = return_score
+                              indiv = sample_group, phi = phi,
+                              w = w[gs, , drop = FALSE],
+                              Sigma_xi = cov_variables2test_eff,
+                              genewise_pvals = FALSE,
+                              homogen_traj = homogen_traj,
+                              na.rm = na.rm_gsaseq,
+                              return_score = return_score
           )
 
           pval = test$set_pval
@@ -673,26 +681,46 @@ dgsa_seq <- function(exprmat = NULL, object = NULL,
 
       n_genesets = length(genesets)
       # indiv_phi = (cbind(variables2test,sample_group) %>% as.data.frame() %>% distinct() %>%
-                     #arrange(sample_group))[,1]
+      #arrange(sample_group))[,1]
 
       indiv_phi = phi
       directional.scores = matrix(0, nrow = n_genesets)
-        for (k in 1:n_genesets){
-          obs_scores = indiv.score[[k]]
-          directional.scores[k] = sum((1/length(GSA[["genesets"]][[k]])) *
-                                             (colSums(obs_scores[indiv_phi == 2,])/
-                                                length(which(indiv_phi == 2)) -
-                                                colSums(obs_scores[indiv_phi == 1,])/
-                                                length(which(indiv_phi == 1))))
-        }
+      # fc.scores = matrix(0, nrow = n_genesets)
+      for (k in 1:n_genesets){
+        obs_scores = indiv.score[[k]]
+        directional.scores[k] = sum((1/length(GSA[["genesets"]][[k]])) *
+                                      (colSums(obs_scores[indiv_phi == 2,])/
+                                         length(which(indiv_phi == 2)) -
+                                         colSums(obs_scores[indiv_phi == 1,])/
+                                         length(which(indiv_phi == 1))))
+      }
 
+      fc.scores = rep(0,n_genesets)
+      for (k in 1:n_genesets){
+        gs_indices = which(rownames(exprmat) %in% genesets[[k]])
+
+        gs_expr = exprmat[gs_indices,]
+
+        treated_expr = gs_expr[,phi == 2]
+        control_expr = gs_expr[,phi == 1]
+
+        genewise_avg_treated = rowMeans(treated_expr)
+        genewise_avg_control = rowMeans(control_expr)
+
+        genewise_fc = genewise_avg_treated - genewise_avg_control
+        fc.scores[k] = mean(genewise_fc)
+      }
 
       score = list("set.score" = set.score,
                    "gene.score" = gene.score,
                    "indiv.score" = indiv.score,
-                   "directional.score" = directional.scores)
+                   "directional.score" = directional.scores,
+                   "fc.score" = fc.scores)
+    }
 
-    } else if (which_test == "asymptotic" & return_score == FALSE){
+    ### COMPUTE P-VALUES ###
+
+    if (which_test == "asymptotic"){
       if (is.null(sample_group)) {
         sample_group <- seq_len(nrow(x))
       }
@@ -720,10 +748,7 @@ dgsa_seq <- function(exprmat = NULL, object = NULL,
           return(pval)
         }
       }, FUN.VALUE = 0.5)
-    }
-
-
-    else if (which_test == "permutation") {
+    } else if (which_test == "permutation") {
       if (is.null(sample_group)) {
         sample_group <- rep(1, nrow(x))
       }
@@ -763,12 +788,14 @@ dgsa_seq <- function(exprmat = NULL, object = NULL,
                        adaptive = adaptive,
                        max_adaptive = max_adaptive,
                        homogen_traj = homogen_traj,
-                       na.rm = na.rm_gsaseq
+                       na.rm = na.rm_gsaseq,
+                       return_score = F
           )$set_pval
         }
       }, FUN.VALUE = 0.5)
     }
 
+    ### ADJUST P-VALUES ###
     if(!is.na(padjust_methods)){
       pvals <- data.frame(rawPval = rawPvals,
                           adjPval = stats::p.adjust(rawPvals,
@@ -777,17 +804,20 @@ dgsa_seq <- function(exprmat = NULL, object = NULL,
     }else{
       pvals <- data.frame(rawPval = rawPvals, adjPval = NA)
     }
+    # Assign names to gene sets
     if (!is.null(names(genesets))) {
       rownames(pvals) <- names(genesets)
     }
 
   }
+
+    ### FINAL OUTPUT ###
   if(is.null(genesets)){
     ans_final <- list(which_test = which_test, preprocessed = preprocessed,
                       n_perm = n_perm, pvals = pvals, precision_weights = w,
                       weight_object = w_full
     )
-  }else if (!is.null(genesets) & return_score == FALSE){
+  } else if (!is.null(genesets) & return_score == FALSE){
     ans_final <- list(which_test = which_test, preprocessed = preprocessed,
                       n_perm = n_perm, genesets = genesets, pvals = pvals,
                       precision_weights = lapply(genesets,
