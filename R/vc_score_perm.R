@@ -41,7 +41,6 @@
 #'\code{parallel_comp} is \code{TRUE}.
 #'Default is \code{parallel::detectCores(logical=FALSE) - 1}.
 #'
-#'
 #'@return A list with the following elements:\itemize{
 #'   \item \code{score}: an approximation of the observed set score
 #'   \item \code{scores_perm}: a vector containing the permuted set scores
@@ -62,20 +61,20 @@
 #'sigma <- 0.4
 #'b0 <- 1
 #'
-# #under the null:
-# b1 <- 0
-# #under the alternative:
-# b1 <- 0.7
-# y.tilde <- b0 + b1*t + rnorm(r, sd = sigma)
-# y <- t(matrix(rnorm(n*r, sd = sqrt(sigma*abs(y.tilde))), ncol=n, nrow=r) +
-#       matrix(rep(y.tilde, n), ncol=n, nrow=r))
-# x <- matrix(1, ncol=1, nrow=r)
-#
-# #run test
-# scoreTest <- vc_score_perm(y, x, phi=t, w=matrix(1, ncol=ncol(y),
-#                                                 nrow=nrow(y)),
-#                     Sigma_xi=matrix(1), indiv=rep(1:(r/3), each=3),
-#                     parallel_comp = FALSE)
+#'#under the null:
+#'b1 <- 0
+#'#under the alternative:
+#'b1 <- 0.7
+#'y.tilde <- b0 + b1*t + rnorm(r, sd = sigma)
+#'y <- t(matrix(rnorm(n*r, sd = sqrt(sigma*abs(y.tilde))), ncol=n, nrow=r) +
+#'       matrix(rep(y.tilde, n), ncol=n, nrow=r))
+#'x <- matrix(1, ncol=1, nrow=r)
+#'
+#'#run test
+#'scoreTest <- vc_score_perm(y, x, phi=t, w=matrix(1, ncol=ncol(y),
+#'                                                 nrow=nrow(y)),
+#'                     Sigma_xi=matrix(1), indiv=rep(1:(r/3), each=3),
+#'                     parallel_comp = FALSE)
 #'scoreTest$score
 #'
 #'@importFrom stats model.matrix
@@ -205,21 +204,8 @@ vc_score_perm <- function(y, x, indiv, phi, w, Sigma_xi = diag(ncol(phi)),
         U_XT_indiv <- crossprod(indiv_mat, U_XT)
         q_ext <- q - U_XT_indiv
         qq <- colSums(q, na.rm = na_rm)^2/nb_indiv
-
-        ans = rowSums(matrix(qq, ncol = K))
-        return(ans)  # genewise scores
+        return(rowSums(matrix(qq, ncol = K)))  # genewise scores
     }
-
-      # Calculate observed individual-level scores
-      phi_sig_xi_sqrt <- phi %*% sig_xi_sqrt
-      T_fast <- do.call(cbind, replicate(K, sig_eps_inv_T,#[v, , drop = FALSE],
-                                         simplify = FALSE)) *
-        matrix(apply(phi_sig_xi_sqrt, 2, rep, g), ncol = g * K)
-      q_fast <- matrix(yt_mu, ncol = g * n_t, nrow = n) * T_fast
-      if (na_rm & sum(is.na(q_fast)) > 0) {
-        q_fast[is.na(q_fast)] <- 0
-      }
-
 
     o <- order(as.numeric(unlist(split(x = as.character(seq_len(n)),
                                        f = indiv))))
@@ -265,6 +251,5 @@ vc_score_perm <- function(y, x, indiv, phi, w, Sigma_xi = diag(ncol(phi)),
 
     return(list(score = QQ[1], scores_perm = QQ[-1],
                 gene_scores_unscaled = gene_Q[, 1],
-                gene_scores_unscaled_perm = gene_Q[, -1],
-                q = q_fast))
+                gene_scores_unscaled_perm = gene_Q[, -1]))
 }

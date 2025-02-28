@@ -157,6 +157,10 @@
 #'returns the score statistics at the set, gene, and individual levels. Default is
 #'\code{FALSE}.
 #'
+#'@param active_level a string to be provided if \code{return_score} is true. This gives the level of phi
+#' to be considered the "active" condition. The scores then represent the gene-set activations in this condition
+#' relative to the others.
+#'
 #'@return A list with the following elements:\itemize{
 #'   \item \code{which_test}: a character string carrying forward the value of
 #'   the '\code{which_test}' argument indicating which test was perform (either
@@ -285,9 +289,19 @@ dgsa_seq <- function(exprmat = NULL, object = NULL,
                      homogen_traj = FALSE,
                      na.rm_gsaseq = TRUE,
                      verbose = TRUE,
-                     return_score = FALSE) {
+                     return_score = FALSE,
+                     active_level = NULL) {
 
 ### VALIDITY CHECKS ###
+
+  if (return_score == TRUE & is.null(active_level)){
+    stop("return_score == TRUE but no active condition specified.
+         Specify the level of phi which should be considered the active condition to compare against.")
+  }
+
+  # if (return_score == TRUE & !active_level %in% as.matrix(unique(phi))){
+  #   stop("The active condition is not a value in phi.")
+  # }
 
   if(weights_var2test_condi & which_test == "permutation"){
       warning("`weights_var2test_condi` must be FALSE for the ",
@@ -419,6 +433,10 @@ dgsa_seq <- function(exprmat = NULL, object = NULL,
             "\n all variables (including factors) are converted ",
             "to numeric...")
     x <- as.matrix(as.data.frame(lapply(x, as.numeric)))
+  }
+
+  if (!is.null(active_level)){
+    phi_active = phi
   }
 
   if (is.data.frame(phi)) {
@@ -564,8 +582,7 @@ dgsa_seq <- function(exprmat = NULL, object = NULL,
                                   adaptive = adaptive,
                                   max_adaptive = max_adaptive,
                                   homogen_traj = homogen_traj,
-                                  na.rm = na.rm_gsaseq,
-                                  return_score = return_score)
+                                  na.rm = na.rm_gsaseq)
       rawPvals <- perm_result$gene_pvals
     }
 
@@ -639,85 +656,6 @@ dgsa_seq <- function(exprmat = NULL, object = NULL,
       }
     }
 
-    ### COMPUTE SCORES ###
-
-    if (return_score == TRUE){
-
-      if (is.null(sample_group)) {
-        sample_group <- seq_len(nrow(x))
-      }
-      results_list <- lapply(seq_along(genesets), FUN = function(i_gs) {
-        gs <- genesets[[i_gs]]
-        e <- tryCatch(y_lcpm[gs, 1, drop = FALSE],
-                      error=function(cond){return(NULL)})
-        if (length(e) < 1) {
-          warning("Gene set ", i_gs, " contains 0 measured ",
-                  "transcript: associated p-value cannot ",
-                  "be computed")
-          NA
-        } else {
-          test = vc_test_asym(y = y_lcpm[gs, , drop = FALSE], x = x,
-                              indiv = sample_group, phi = phi,
-                              w = w[gs, , drop = FALSE],
-                              Sigma_xi = cov_variables2test_eff,
-                              genewise_pvals = FALSE,
-                              homogen_traj = homogen_traj,
-                              na.rm = na.rm_gsaseq,
-                              return_score = return_score
-          )
-
-          pval = test$set_pval
-          set.score = test$set_score
-          gene.score = test$gene.score
-          indiv.score = test$indiv.score
-          return(list(pval, set.score, gene.score, indiv.score))
-        }
-      })
-
-      rawPvals <- sapply(results_list, function(x) x[[1]])
-      set.score <- sapply(results_list, function(x) x[[2]])
-      gene.score <- lapply(results_list, function(x) x[[3]])
-      indiv.score <- lapply(results_list, function(x) x[[4]])
-
-      n_genesets = length(genesets)
-      # indiv_phi = (cbind(variables2test,sample_group) %>% as.data.frame() %>% distinct() %>%
-      #arrange(sample_group))[,1]
-
-      indiv_phi = phi
-      directional.scores = matrix(0, nrow = n_genesets)
-      # fc.scores = matrix(0, nrow = n_genesets)
-      for (k in 1:n_genesets){
-        obs_scores = indiv.score[[k]]
-        directional.scores[k] = sum((1/length(GSA[["genesets"]][[k]])) *
-                                      (colSums(obs_scores[indiv_phi == 2,])/
-                                         length(which(indiv_phi == 2)) -
-                                         colSums(obs_scores[indiv_phi == 1,])/
-                                         length(which(indiv_phi == 1))))
-      }
-
-      fc.scores = rep(0,n_genesets)
-      for (k in 1:n_genesets){
-        gs_indices = which(rownames(exprmat) %in% genesets[[k]])
-
-        gs_expr = exprmat[gs_indices,]
-
-        treated_expr = gs_expr[,phi == 2]
-        control_expr = gs_expr[,phi == 1]
-
-        genewise_avg_treated = rowMeans(treated_expr)
-        genewise_avg_control = rowMeans(control_expr)
-
-        genewise_fc = genewise_avg_treated - genewise_avg_control
-        fc.scores[k] = mean(genewise_fc)
-      }
-
-      score = list("set.score" = set.score,
-                   "gene.score" = gene.score,
-                   "indiv.score" = indiv.score,
-                   "directional.score" = directional.scores,
-                   "fc.score" = fc.scores)
-    }
-
     ### COMPUTE P-VALUES ###
 
     if (which_test == "asymptotic"){
@@ -741,7 +679,7 @@ dgsa_seq <- function(exprmat = NULL, object = NULL,
                               genewise_pvals = FALSE,
                               homogen_traj = homogen_traj,
                               na.rm = na.rm_gsaseq,
-                              return_score = FALSE
+                              return_score = F
           )
 
           pval = test$set_pval
@@ -749,6 +687,7 @@ dgsa_seq <- function(exprmat = NULL, object = NULL,
         }
       }, FUN.VALUE = 0.5)
     } else if (which_test == "permutation") {
+      return_score_temp = F
       if (is.null(sample_group)) {
         sample_group <- rep(1, nrow(x))
       }
@@ -788,8 +727,7 @@ dgsa_seq <- function(exprmat = NULL, object = NULL,
                        adaptive = adaptive,
                        max_adaptive = max_adaptive,
                        homogen_traj = homogen_traj,
-                       na.rm = na.rm_gsaseq,
-                       return_score = F
+                       na.rm = na.rm_gsaseq
           )$set_pval
         }
       }, FUN.VALUE = 0.5)
@@ -809,6 +747,86 @@ dgsa_seq <- function(exprmat = NULL, object = NULL,
       rownames(pvals) <- names(genesets)
     }
 
+  }
+
+  ### COMPUTE SCORES ###
+
+  if (return_score == TRUE){
+
+    if (is.null(sample_group)) {
+      sample_group <- seq_len(nrow(x))
+    }
+    results_list <- lapply(seq_along(genesets), FUN = function(i_gs) {
+      gs <- genesets[[i_gs]]
+      e <- tryCatch(y_lcpm[gs, 1, drop = FALSE],
+                    error=function(cond){return(NULL)})
+      if (length(e) < 1) {
+        warning("Gene set ", i_gs, " contains 0 measured ",
+                "transcript: associated p-value cannot ",
+                "be computed")
+        NA
+      } else {
+        test = vc_test_asym(y = y_lcpm[gs, , drop = FALSE], x = x,
+                            indiv = sample_group, phi = phi,
+                            w = w[gs, , drop = FALSE],
+                            Sigma_xi = cov_variables2test_eff,
+                            genewise_pvals = FALSE,
+                            homogen_traj = homogen_traj,
+                            na.rm = na.rm_gsaseq,
+                            return_score = return_score
+        )
+        set.score = test$set_score
+        gene.score = test$gene.score
+        indiv.score = test$indiv.score
+        return(list(set.score, gene.score, indiv.score))
+      }
+    })
+
+    set.score <- sapply(results_list, function(x) x[[1]])
+    gene.score <- lapply(results_list, function(x) x[[2]])
+    indiv.score <- lapply(results_list, function(x) x[[3]])
+
+    n_genesets = length(genesets)
+    # indiv_phi = (cbind(variables2test,sample_group) %>% as.data.frame() %>% distinct() %>%
+    #arrange(sample_group))[,1]
+
+    directional.scores = matrix(0, nrow = n_genesets)
+    # fc.scores = matrix(0, nrow = n_genesets)
+    ind_active = which(phi_active == active_level)
+    ind_reference = which(phi_active != active_level)
+
+    for (k in 1:n_genesets){
+      obs_scores = indiv.score[[k]]
+      directional.scores[k] = sum((1/length(genesets[[k]])) *
+                                    (colSums(obs_scores[ind_active,])/
+                                       length(ind_active) -
+                                       colSums(obs_scores[ind_reference,])/
+                                       length(ind_reference)))
+    }
+
+    fc.scores = rep(0,n_genesets)
+    for (k in 1:n_genesets){
+      gs_indices = which(rownames(exprmat) %in% genesets[[k]])
+
+      gs_expr = exprmat[gs_indices,]
+
+      treated_expr = gs_expr[,ind_active]
+      control_expr = gs_expr[,ind_reference]
+
+      genewise_avg_treated = rowMeans(treated_expr)
+      genewise_avg_control = rowMeans(control_expr)
+
+      genewise_fc = genewise_avg_treated - genewise_avg_control
+      fc.scores[k] = mean(genewise_fc)
+    }
+
+    score = list("set.score" = set.score,
+                 "gene.score" = gene.score,
+                 "indiv.score" = indiv.score,
+                 "directional.score" = directional.scores,
+                 "fc.score" = fc.scores)
+  } else {
+    score = NULL
   }
 
     ### FINAL OUTPUT ###

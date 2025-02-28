@@ -55,9 +55,6 @@
 #'@param na.rm logical: should missing values (including \code{NA} and
 #'\code{NaN}) be omitted from the calculations? Default is \code{FALSE}.
 #'
-#'@param return_score logical : should gene and individual level scores be returned
-#' from the function? Default is \code{FALSE}.
-#'
 #'@references Phipson B, and Smyth GK (2010). Permutation p-values should
 #'never be zero: calculating exact p-values when permutations are randomly
 #'drawn. \emph{Statistical Applications in Genetics and Molecular Biology},
@@ -113,8 +110,7 @@ vc_test_perm <- function(y, x, indiv = rep(1, nrow(x)), phi, w,
                          nb_cores = parallel::detectCores(logical=FALSE) - 1,
                          genewise_pvals = FALSE,
                          adaptive = TRUE, max_adaptive = 64000,
-                         homogen_traj = FALSE, na.rm = FALSE,
-                         return_score = FALSE) {
+                         homogen_traj = FALSE, na.rm = FALSE) {
 
     n_samples <- ncol(y)
     if (is.null(colnames(y))) {
@@ -210,23 +206,10 @@ vc_test_perm <- function(y, x, indiv = rep(1, nrow(x)), phi, w,
 
         ans <- list(gene_scores_obs = gene_scores_obs, gene_pvals = pvals_e)
     } else {
-
-      if (return_score == TRUE){
-        pvals_u <- (sum(score_list_res$scores_perm >=
-                          score_list_res$score) + 1)/(n_perm + 1)
-
-        ans <- list("set_score_obs" = score_list_res$score,
-                    "set_pval" = pvals_u,
-                    "gene.score" = score_list_res$gene_scores_unscaled,
-                    "indiv.score" = score_list_res$q)
-      } else {
-
         pvals_u <- (sum(score_list_res$scores_perm >=
                             score_list_res$score) + 1)/(n_perm + 1)
 
         ans <- list(set_score_obs = score_list_res$score, set_pval = pvals_u)
-
-      }
 
     }
     return(ans)
