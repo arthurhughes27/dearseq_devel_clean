@@ -8,8 +8,8 @@
 #'\tabular{ll}{
 #'Package: \tab dearseq\cr
 #'Type: \tab Package\cr
-#'Version: \tab 1.13.4\cr
-#'Date: \tab 2023-09-06\cr
+#'Version: \tab 1.13.6\cr
+#'Date: \tab 2024-03-06\cr
 #'License:\tab \href{http://www.gnu.org/licenses/gpl-2.0.txt}{GPL-2}\cr
 #'}
 #'The two main functions of the \code{dearseq} package are
@@ -29,4 +29,9 @@
 #'\href{https://doi.org/10.1093/nargab/lqaa093}{DOI: 10.1093/nargab/lqaa093}.
 #'\href{https://www.biorxiv.org/content/10.1101/635714}{DOI: 10.1101/635714}
 #'
+## usethis namespace: start
+#' @importFrom Rcpp sourceCpp
+#' @import RcppEigen
+#' @useDynLib dearseq, .registration = TRUE
+## usethis namespace: end
 "_PACKAGE"

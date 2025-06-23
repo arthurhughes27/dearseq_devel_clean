@@ -1,6 +1,6 @@
 #'Computes variance component score test statistic for homogeneous trajectories
 #'
-#'This function computes the variance component score test statistics for 
+#'This function computes the variance component score test statistics for
 #'homogeneous trajectories
 #'
 #'@keywords internal
@@ -185,8 +185,7 @@ vc_score_h <- function(y, x, indiv, phi, w, Sigma_xi = diag(ncol(phi)),
 
     sig_eps_inv_T <- t(w)
     phi_sig_xi_sqrt <- phi %*% sig_xi_sqrt
-    T_fast <- do.call(cbind, replicate(K, sig_eps_inv_T, simplify = FALSE)) *
-        matrix(apply(phi_sig_xi_sqrt, 2, rep, g), ncol = g * K)
+    T_fast <- compute_T_cpp(sig_eps_inv_T, phi_sig_xi_sqrt)
     q_fast <- do.call(cbind, replicate(K, yt_mu, simplify = FALSE)) * T_fast
 
     if (length(levels(indiv)) > 1) {
@@ -195,7 +194,7 @@ vc_score_h <- function(y, x, indiv, phi, w, Sigma_xi = diag(ncol(phi)),
         indiv_mat <- matrix(as.numeric(indiv), ncol = 1)
     }
 
-    if (na_rm & sum(is.na(q_fast)) > 0) {
+    if (na_rm && anyNA(q_fast)) {
         q_fast[is.na(q_fast)] <- 0
     }
     q <- crossprod(indiv_mat, q_fast)
@@ -203,7 +202,7 @@ vc_score_h <- function(y, x, indiv, phi, w, Sigma_xi = diag(ncol(phi)),
     avg_xtx_inv_tx <- nb_indiv * tcrossprod(solve(crossprod(x, x)), x)
     U_XT <- matrix(yt_mu, ncol = g * n_t, nrow = n) *
         crossprod(avg_xtx_inv_tx, XT_fast)
-    if (na_rm & sum(is.na(U_XT)) > 0) {
+    if (na_rm && anyNA(U_XT)) {
         U_XT[is.na(U_XT)] <- 0
     }
     U_XT_indiv <- crossprod(indiv_mat, U_XT)

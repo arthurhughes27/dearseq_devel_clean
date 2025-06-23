@@ -85,7 +85,7 @@ vc_score <- function(y, x, indiv, phi, w, Sigma_xi = diag(ncol(phi)),
     stopifnot(nrow(phi) == n)
     stopifnot(length(indiv) == n)
 
-    if(Sigma_xi )
+
     # the number of random effects
     if (length(Sigma_xi) == 1) {
         K <- 1
@@ -103,7 +103,7 @@ vc_score <- function(y, x, indiv, phi, w, Sigma_xi = diag(ncol(phi)),
 
     ## OLS for conditional mean -----
     y_T <- t(y)
-    if (na_rm & sum(is.na(y_T)) > 0) {
+    if (na_rm && anyNA(y_T)) {
         y_T0 <- y_T
         y_T0[is.na(y_T0)] <- 0
         yt_mu <- y_T - x %*% solve(crossprod(x)) %*% t(x) %*% y_T0
@@ -155,8 +155,7 @@ vc_score <- function(y, x, indiv, phi, w, Sigma_xi = diag(ncol(phi)),
     sig_eps_inv_T <- t(w)
     phi_sig_xi_sqrt <- phi %*% sig_xi_sqrt
 
-    T_fast <- do.call(cbind, replicate(K, sig_eps_inv_T, simplify = FALSE)) *
-        matrix(apply(phi_sig_xi_sqrt, 2, rep, g), ncol = g * K)
+    T_fast <- compute_T_cpp(sig_eps_inv_T, phi_sig_xi_sqrt)
     ##---------------------
     ## the structure of T_fast is time_basis_1*gene_1, time_basis_1*gene_2, ...,
     ## time_basis_1*gene_p, ..., time_basis_K*gene_1, ..., time_basis_K*gene_p
@@ -185,7 +184,7 @@ vc_score <- function(y, x, indiv, phi, w, Sigma_xi = diag(ncol(phi)),
         indiv_mat <- matrix(as.numeric(indiv), ncol = 1)
     }
 
-    if (na_rm & sum(is.na(q_fast)) > 0) {
+    if (na_rm && anyNA(q_fast)) {
         q_fast[is.na(q_fast)] <- 0
     }
     q <- crossprod(indiv_mat, q_fast)
@@ -193,7 +192,7 @@ vc_score <- function(y, x, indiv, phi, w, Sigma_xi = diag(ncol(phi)),
     avg_xtx_inv_tx <- nb_indiv * tcrossprod(solve(crossprod(x, x)), x)
     U_XT <- matrix(yt_mu, ncol = g * n_t, nrow = n) *
         crossprod(avg_xtx_inv_tx, XT_fast)
-    if (na_rm & sum(is.na(U_XT)) > 0) {
+    if (na_rm && anyNA(U_XT)) {
         U_XT[is.na(U_XT)] <- 0
     }
     U_XT_indiv <- crossprod(indiv_mat, U_XT)
@@ -213,6 +212,6 @@ vc_score <- function(y, x, indiv, phi, w, Sigma_xi = diag(ncol(phi)),
 
     QQ <- sum(qq)  #nb_indiv=nrow(q) # set score
 
-    return(list(score = QQ, q = q_fast, q_ext = q_ext,
+    return(list(score = QQ, q = q, q_ext = q_ext,
                 gene_scores_unscaled = gene_Q))
 }

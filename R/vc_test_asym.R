@@ -36,15 +36,10 @@
 #'@param na.rm logical: should missing values (including \code{NA} and
 #'\code{NaN}) be omitted from the calculations? Default is \code{FALSE}.
 #'
-#'@param return_score logical : should gene and individual level scores be returned
-#' from the function? Default is \code{FALSE}.
-#'
 #'@return A list with the following elements when the set p-value is computed:
 #'\itemize{
 #'   \item \code{set_score_obs}: the approximation of the observed set score
 #'   \item \code{set_pval}: the associated set p-value
-#'   \item \code{gene.score} : the gene level scores (only when \code{return_score} is \code{TRUE})
-#'   \item \code{indiv.score} : the individual level scores (only when \code{return_score} is \code{TRUE})
 #' }
 #' or a list with the following elements when gene-wise p-values are computed:
 #' \itemize{
@@ -97,7 +92,7 @@
 vc_test_asym <- function(y, x, indiv = rep(1, nrow(x)), phi, w,
                          Sigma_xi = diag(ncol(phi)),
                          genewise_pvals = FALSE, homogen_traj = FALSE,
-                         na.rm = FALSE, return_score = FALSE) {
+                         na.rm = FALSE) {
 
     if (homogen_traj) {
         score_list <- vc_score_h(y = y, x = x, indiv = factor(indiv), phi = phi,
@@ -197,15 +192,9 @@ vc_test_asym <- function(y, x, indiv = rep(1, nrow(x)), phi, w,
                                     a = lam,
                                     lower.tail = FALSE,
                                     method = "saddlepoint")
-        if (return_score == TRUE){
+
         ans <- list("set_score_obs" = score_list$score,
-                    "set_pval" = dv,
-                    "gene.score" = score_list$gene_scores_unscaled,
-                    "indiv.score" = score_list$q)
-        } else {
-          ans <- list("set_score_obs" = score_list$score,
-                      "set_pval" = dv)
-        }
+                    "set_pval" = dv)
     }
 
     return(ans)
